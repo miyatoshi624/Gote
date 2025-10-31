@@ -1,0 +1,58 @@
+﻿@page "/top"
+
+@inject NavigationManager Navigation
+@inject ISupabaseService SupabaseService
+
+<PageTitle>Top</PageTitle>
+
+@if (_memos is null)
+{
+    <div>読み込み中...</div>
+}
+else if (!_memos.Any())
+{
+    <div>メモがありません</div>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var memo in _memos)
+        {
+            <li class="list-group-item">
+                <span class="pointer" @onclick="() => Edit(memo.Id)"><strong>@memo.Title</strong></span>
+                <div class="text-muted small">@memo.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</div>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    /// <summary>
+    /// メモ一覧
+    /// </summary>
+    private List<Memo>? _memos;
+
+    /// <summary>
+    /// 初期化処理
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        _memos = await SupabaseService.GetLatestMemosAsync(10);
+
+        await base.OnInitializedAsync();
+    }
+
+    /// <summary>
+    /// メモ編集画面へ遷移
+    /// </summary>
+    /// <param name="memoId"></param>
+    private void Edit(int memoId)
+    {
+        Memo? memo = _memos?.FirstOrDefault(x => x.Id == memoId);
+        if (memo is not null)
+        {
+            Navigation.NavigateTo($"/edit/{memo.CategoryId}/{memo.Id}");
+        }
+    }
+}

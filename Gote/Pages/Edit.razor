@@ -1,0 +1,244 @@
+﻿@page "/edit/{CategoryId:int}"
+@page "/edit/{CategoryId:int}/{MemoId:int?}"
+@using Markdig
+
+@inject NavigationManager Navigation
+@inject ISupabaseService SupabaseService
+@inject CategoryStateService CategoryService
+
+@if (string.IsNullOrEmpty(_message))
+{
+    if (_memo is not null)
+    {
+        <div class="edit-page-container">
+            <div class="btn-toolbar mb-3">
+                <div class="btn-group me-3">
+                    <input type="radio" class="btn-check" name="btn-toolbar-check" id="btn-toolbar-check1" checked="@(_mode == Mode.preview)" @onchange="() => _mode = Mode.preview" />
+                    <label class="btn btn-outline-dark" for="btn-toolbar-check1">表示</label>
+
+                    <input type="radio" class="btn-check" name="btn-toolbar-check" id="btn-toolbar-check2" checked="@(_mode == Mode.edit)" @onchange="() => _mode = Mode.edit" />
+                    <label class="btn btn-outline-dark" for="btn-toolbar-check2">編集</label>
+
+                    <input type="radio" class="btn-check" name="btn-toolbar-check" id="btn-toolbar-check3" checked="@(_mode == Mode.category)" @onchange="() => _mode = Mode.category" />
+                    <label class="btn btn-outline-dark" for="btn-toolbar-check3">カテゴリ</label>
+                </div>
+                <div class="btn-group me-3">
+                    <button type="button" class="btn btn-outline-dark" @onclick="Cancel">戻る</button>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" @onclick="Save">保存</button>
+                </div>
+            </div>
+
+            <div class="edit-content-area">
+                @if (_mode == Mode.preview)
+                {
+                    <div class="mb-3">
+                        <div class="badge bg-secondary">@CategoryService.Categories?.FirstOrDefault(x => x.Id == _memo.CategoryId)?.Name</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="p-2">@_memo.Title</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="p-2" @key="_memo.Content">
+                            @((MarkupString)Markdown.ToHtml(_memo.Content ?? ""))
+                        </div>
+                    </div>
+                }
+                else if (_mode == Mode.edit)
+                {
+                    <div class="mb-3">
+                        <select class="form-select" @bind="_memo.CategoryId">
+                            @if (CategoryService.Categories is not null)
+                            {
+                                @foreach (var category in CategoryService.Categories)
+                                {
+                                    <option value="@category.Id">
+                                        @($"{category.Name} - {category.Description}")
+                                    </option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <input class="form-control" @bind="_memo.Title" placeholder="タイトル" />
+                    </div>
+                    <div class="mb-3 textarea-wrapper">
+                        <textarea class="form-control textarea-expand" @bind="_memo.Content" placeholder="内容"></textarea>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <input class="form-control" @bind="_newCategoryName" placeholder="新しいカテゴリ名" />
+                    </div>
+                    <div class="mb-3">
+                        <input class="form-control" @bind="_newCategoryDescription" placeholder="新しいカテゴリの説明" />
+                    </div>
+                    <button class="btn btn-primary mb-3 fit-content" @onclick="AddCategory">追加</button>
+                    @if (CategoryService.Categories is not null)
+                    {
+                        <ul class="list-group">
+                            @foreach (var category in CategoryService.Categories)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span><strong>@category.Name</strong></span>
+                                        <div class="text-muted small">@category.Description</div>
+                                    </div>
+                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteCategory(category.Id)">削除</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                }
+            </div>
+
+        </div>
+    }
+    else
+    {
+        <div>読み込み中...</div>
+    }
+}
+else
+{
+    <div class="alert alert-danger" role="alert">
+        @_message
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// カテゴリID
+    /// </summary>
+    [Parameter]
+    public int CategoryId { get; set; }
+    /// <summary>
+    /// メモID
+    /// </summary>
+    [Parameter]
+    public int? MemoId { get; set; }
+    /// <summary>
+    /// メモ
+    /// </summary>
+    private Memo? _memo;
+    /// <summary>
+    /// 表示モード列挙
+    /// </summary>
+    private enum Mode
+    {
+        preview,
+        edit,
+        category
+    }
+    /// <summary>
+    /// 表示モード
+    /// </summary>
+    private Mode _mode = Mode.preview;
+    /// <summary>
+    /// メッセージ
+    /// </summary>
+    private string _message = string.Empty;
+    /// <summary>
+    /// 新しいカテゴリ名
+    /// </summary>
+    private string _newCategoryName = string.Empty;
+    /// <summary>
+    /// 新しいカテゴリ説明
+    /// </summary>
+    private string _newCategoryDescription = string.Empty;
+
+    /// <summary>
+    /// パラメータ設定時処理
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnParametersSetAsync()
+    {
+        await CategoryService.LoadCategoriesAsync();
+
+        // 更新
+        if (MemoId.HasValue)
+        {
+            _memo = await SupabaseService.GetMemoAsync(MemoId.Value);
+            if (_memo is null)
+            {
+                _message = "指定されたメモは存在しません。";
+            }
+
+            _mode = Mode.preview;
+        }
+        // 新規作成
+        else
+        {
+            _memo = new Memo
+            {
+                CategoryId = CategoryId,
+                Title = string.Empty,
+                Content = string.Empty,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _mode = Mode.edit;
+        }
+
+        await base.OnParametersSetAsync();
+    }
+
+    /// <summary>
+    /// 保存
+    /// </summary>
+    /// <returns></returns>
+    private async Task Save()
+    {
+        // 更新
+        if (MemoId.HasValue)
+        {
+            await SupabaseService.UpdateMemoAsync(_memo!);
+        }
+        // 新規作成
+        else
+        {
+            await SupabaseService.CreateMemoAsync(_memo!);
+        }
+    }
+
+    /// <summary>
+    /// キャンセル
+    /// </summary>
+    private void Cancel()
+    {
+        if (_memo is null || CategoryService.Categories?.Any(x => x.Id == _memo.CategoryId) == false)
+        {
+            Navigation.NavigateTo($"/top");
+        }
+        else
+        {
+            Navigation.NavigateTo($"/list/{_memo.CategoryId}");
+        }
+    }
+
+    /// <summary>
+    /// カテゴリ追加
+    /// </summary>
+    private async Task AddCategory()
+    {
+        await CategoryService.AddCategoryAsync(new Category
+        {
+            Name = _newCategoryName,
+            Description = _newCategoryDescription
+        });
+        _newCategoryName = string.Empty;
+        _newCategoryDescription = string.Empty;
+    }
+
+    /// <summary>
+    /// カテゴリ削除
+    /// </summary>
+    /// <param name="categoryId"></param>
+    private async Task DeleteCategory(int categoryId)
+    {
+        await CategoryService.DeleteCategoryAsync(categoryId);
+    }
+}

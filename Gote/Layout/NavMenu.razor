@@ -1,39 +1,83 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@inject CategoryStateService CategoryService
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Gote</a>
+        <a class="navbar-brand" href="top">Gote</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<div class="@_navMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
+        @if (CategoryService.Categories is null)
+        {
+            <div>カテゴリを読み込み中...</div>
+        }
+        else if (!CategoryService.Categories.Any())
+        {
+            <div>カテゴリがありません</div>
+        }
+        else
+        {
+            @foreach (Category category in CategoryService.Categories)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href=@($"list/{category.Id}")>
+                        @category.Name
+                    </NavLink>
+                </div>
+            }
+        }
+        <hr class="nav-hr mb-2" />
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
+            <NavLink class="nav-link" href="@($"edit/0")">新規作成</NavLink>
         </div>
     </nav>
 </div>
 
 @code {
-    private bool collapseNavMenu = true;
+    /// <summary>
+    /// メニューの折り畳み状態
+    /// </summary>
+    private bool _collapseNavMenu = true;
+    /// <summary>
+    /// メニューの折り畳み用CSSクラス定義
+    /// </summary>
+    private string? _navMenuCssClass => _collapseNavMenu ? "collapse" : null;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    /// <summary>
+    /// 初期化処理
+    /// </summary>
+    /// <returns></returns>
+    protected override async Task OnInitializedAsync()
+    {
+        CategoryService.OnCategoryStateChanged += OnCategoryStateChanged;
+        await CategoryService.LoadCategoriesAsync();
+    }
 
+    /// <summary>
+    /// カテゴリ状態変更イベントハンドラ
+    /// </summary>
+    private void OnCategoryStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// オブジェクト破棄時処理
+    /// </summary>
+    public void Dispose()
+    {
+        CategoryService.OnCategoryStateChanged -= OnCategoryStateChanged;
+    }
+
+    /// <summary>
+    /// メニューの折り畳み設定
+    /// </summary>
     private void ToggleNavMenu()
     {
-        collapseNavMenu = !collapseNavMenu;
+        _collapseNavMenu = !_collapseNavMenu;
     }
 }

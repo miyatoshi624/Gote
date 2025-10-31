@@ -1,0 +1,37 @@
+﻿.login-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 60px);
+    gap: 10px;
+    width: max-content;
+}
+
+    .login-grid button {
+        height: 60px;
+        font-size: 1.5rem;
+    }
+
+.login-input {
+    margin-top: 20px;
+    width: 180px;
+    font-size: 1.2rem;
+}
+
+.login-actions {
+    margin-top: 10px;
+}
+
+.login-message {
+    color: red;
+    margin-top: 10px;
+}
+
+.login-password {
+    width: 130px;
+}
+
+.login-password-row {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}

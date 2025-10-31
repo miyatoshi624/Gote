@@ -1,0 +1,146 @@
+﻿@attribute [AllowAnonymous]
+@page "/"
+
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISupabaseService SupabaseService
+
+<PageTitle>Login</PageTitle>
+
+<div class="login-grid">
+    @foreach (int number in _numbers)
+    {
+        <button type="button" class="btn btn-lg btn-outline-dark" @onclick="() => AddDigit(number)">@number</button>
+    }
+    <button type="button" class="btn btn-lg btn-outline-danger" @onclick="RemoveLastDigit">BS</button>
+    <button type="button" class="btn btn-lg btn-outline-danger" @onclick="ClearPassword">CL</button>
+</div>
+
+<div class="login-password-row">
+    <input type="password" class="login-password form-control" value="@_password" readonly />
+    <button type="button" class="btn btn-lg btn-primary" @onclick="SignIn">Sign In</button>
+</div>
+
+@if (!string.IsNullOrEmpty(_message))
+{
+    <div class="alert alert-danger mt-3" role="alert">
+        @_message
+    </div>
+}
+
+@code {
+    /// <summary>
+    /// パスワード入力用の数字リスト
+    /// </summary>
+    private readonly List<int> _numbers = new();
+    /// <summary>
+    /// 入力されたパスワード
+    /// </summary>
+    private string _password = string.Empty;
+    /// <summary>
+    /// メッセージ
+    /// </summary>
+    private string _message = string.Empty;
+
+    /// <summary>
+    /// 初期化処理
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        // 認証状態を確認し、認証されていればリダイレクト
+        if (SupabaseService.IsSessionValid())
+        {
+            Navigation.NavigateTo("/top");
+        }
+        else
+        {
+            // 認証されていない場合、認証情報をクリアする
+            try
+            {
+                if (AuthStateProvider is CustomAuthenticationStateProvider customAuthentication)
+                {
+                    customAuthentication.MarkUserAsLoggedOut();
+                }
+                await SupabaseService.SignOutAsync();
+            }
+            catch (Exception ex)
+            {
+                // ログアウト処理中の例外は無視する
+                Console.WriteLine($"Logout error: {ex.Message}");
+            }
+        }
+
+        // パスワード入力用の数字リストをシャッフルする
+        ShuffleNumbers();
+
+        await base.OnInitializedAsync();
+    }
+
+    /// <summary>
+    /// パスワード入力用の数字リストをシャッフルする
+    /// </summary>
+    private void ShuffleNumbers()
+    {
+        var rand = new Random();
+        _numbers.Clear();
+        _numbers.AddRange(Enumerable.Range(0, 10).OrderBy(_ => rand.Next()));
+    }
+
+    /// <summary>
+    /// パスワードに数字を追加する
+    /// </summary>
+    /// <param name="digit"></param>
+    private void AddDigit(int digit)
+    {
+        if (_password.Length < 99)
+        {
+            _password += digit.ToString();
+        }
+    }
+
+    /// <summary>
+    /// パスワードをクリアする
+    /// </summary>
+    private void ClearPassword()
+    {
+        _password = string.Empty;
+    }
+
+    /// <summary>
+    /// パスワードの最後の数字を削除する
+    /// </summary>
+    private void RemoveLastDigit()
+    {
+        if (_password.Length > 0)
+        {
+            _password = _password[..^1];
+        }
+    }
+
+    /// <summary>
+    /// サインイン処理を実行する
+    /// </summary>
+    /// <returns></returns>
+    private async Task SignIn()
+    {
+        // SupabaseServiceでサインイン処理を実装
+        // OKなら認証情報を作成し、/topへリダイレクト
+        string? userName = await SupabaseService.SignInAsync(_password);
+        if (string.IsNullOrEmpty(userName) == false)
+        {
+            if (AuthStateProvider is CustomAuthenticationStateProvider customAuthentication)
+            {
+                customAuthentication.MarkUserAsAuthenticated(userName);
+                Navigation.NavigateTo("/top");
+            }
+            else
+            {
+                _message = "認証状態の作成に失敗しました。再度サインインしてください。";
+            }
+        }
+        else
+        {
+            _message = "サインインに失敗しました。パスワードを確認してください。";
+        }
+    }
+}

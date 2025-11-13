@@ -1,12 +1,14 @@
-﻿@page "/edit/{CategoryId:int}"
-@page "/edit/{CategoryId:int}/{MemoId:int?}"
+﻿@page "/edit"
+@page "/edit/{CategoryId:guid}"
+@page "/edit/{CategoryId:guid}/{MemoId:guid?}"
 @using Markdig
 
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject ISupabaseService SupabaseService
 @inject CategoryStateService CategoryService
 
-@if (string.IsNullOrEmpty(_message))
+@if (string.IsNullOrEmpty(_errorMessage))
 {
     if (_memo is not null)
     {
@@ -34,7 +36,7 @@
                 @if (_mode == Mode.preview)
                 {
                     <div class="mb-3">
-                        <div class="badge bg-secondary">@CategoryService.Categories?.FirstOrDefault(x => x.Id == _memo.CategoryId)?.Name</div>
+                        <div class="badge bg-secondary">@CategoryService.Categories?.FirstOrDefault(x => x.CategoryId == _memo.CategoryId)?.Name</div>
                     </div>
                     <div class="mb-3">
                         <div class="p-2">@_memo.Title</div>
@@ -53,7 +55,7 @@
                             {
                                 @foreach (var category in CategoryService.Categories)
                                 {
-                                    <option value="@category.Id">
+                                    <option value="@category.CategoryId">
                                         @($"{category.Name} - {category.Description}")
                                     </option>
                                 }
@@ -86,15 +88,76 @@
                                         <span><strong>@category.Name</strong></span>
                                         <div class="text-muted small">@category.Description</div>
                                     </div>
-                                    <button class="btn btn-danger btn-sm" @onclick="() => DeleteCategory(category.Id)">削除</button>
+                                    <button class="btn btn-danger btn-sm" disabled="@category.IsReferenced" @onclick="() => ShowDeleteModal(category.CategoryId)">削除</button>
                                 </li>
                             }
                         </ul>
                     }
+
+                    <!-- 確認 -->
+                    <div class="modal" id="delete-modal" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">確認</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>カテゴリを削除します。</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">いいえ</button>
+                                    <button type="button" class="btn btn-primary" @onclick="DeleteCategory">はい</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                        window.showDeleteModal = function () {
+                            const modalEl = document.getElementById('delete-modal');
+                            if (modalEl) {
+                                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                modal.show();
+                            }
+                        }
+                        window.hideDeleteModal = function () {
+                            const modalEl = document.getElementById('delete-modal');
+                            if (modalEl) {
+                                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                modal.hide();
+                            }
+                        }
+                    </script>
+
                 }
             </div>
 
         </div>
+
+        <!-- メッセージ用 -->
+        <div class="toast-container position-fixed bottom-0 p-3" style="z-index: 1100;">
+            <div class="toast" id="message-toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto">メッセージ</strong>
+                    <small>今</small>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    @_message
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.showToast = function () {
+                const toastEl = document.getElementById('message-toast');
+                if (toastEl) {
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                }
+            }
+        </script>
     }
     else
     {
@@ -104,7 +167,7 @@
 else
 {
     <div class="alert alert-danger" role="alert">
-        @_message
+        @_errorMessage
     </div>
 }
 
@@ -113,12 +176,12 @@ else
     /// カテゴリID
     /// </summary>
     [Parameter]
-    public int CategoryId { get; set; }
+    public Guid? CategoryId { get; set; }
     /// <summary>
     /// メモID
     /// </summary>
     [Parameter]
-    public int? MemoId { get; set; }
+    public Guid? MemoId { get; set; }
     /// <summary>
     /// メモ
     /// </summary>
@@ -137,9 +200,13 @@ else
     /// </summary>
     private Mode _mode = Mode.preview;
     /// <summary>
-    /// メッセージ
+    /// メッセ―ジ
     /// </summary>
     private string _message = string.Empty;
+    /// <summary>
+    /// エラーメッセージ
+    /// </summary>
+    private string _errorMessage = string.Empty;
     /// <summary>
     /// 新しいカテゴリ名
     /// </summary>
@@ -148,6 +215,10 @@ else
     /// 新しいカテゴリ説明
     /// </summary>
     private string _newCategoryDescription = string.Empty;
+    /// <summary>
+    /// 削除対象カテゴリID
+    /// </summary>
+    private Guid? _deleteTargetCategoryId;
 
     /// <summary>
     /// パラメータ設定時処理
@@ -160,27 +231,40 @@ else
         // 更新
         if (MemoId.HasValue)
         {
-            _memo = await SupabaseService.GetMemoAsync(MemoId.Value);
-            if (_memo is null)
-            {
-                _message = "指定されたメモは存在しません。";
-            }
+            var result = await SupabaseService.GetMemoAsync(MemoId.Value);
+
+            result.Match(
+                memo => _memo = memo,
+                error => _errorMessage = "メモの取得に失敗しました。"
+            );
 
             _mode = Mode.preview;
         }
         // 新規作成
         else
         {
-            _memo = new Memo
+            var getUserIdResult = SupabaseService.GetUserId();
+            if (getUserIdResult.IsSuccess)
             {
-                CategoryId = CategoryId,
-                Title = string.Empty,
-                Content = string.Empty,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
+                Guid categoryId = CategoryId ?? (CategoryService.Categories?.FirstOrDefault()?.CategoryId ?? Guid.Empty);
 
-            _mode = Mode.edit;
+
+                _memo = new Memo
+                {
+                    UserId = getUserIdResult.GetSuccess(),
+                    CategoryId = categoryId,
+                    Title = string.Empty,
+                    Content = string.Empty,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _mode = Mode.edit;
+            }
+            else
+            {
+                _errorMessage = getUserIdResult.GetFailure().Message;
+            }
         }
 
         await base.OnParametersSetAsync();
@@ -192,16 +276,41 @@ else
     /// <returns></returns>
     private async Task Save()
     {
-        // 更新
-        if (MemoId.HasValue)
+        if (_memo?.CategoryId is null)
         {
-            await SupabaseService.UpdateMemoAsync(_memo!);
+            _message = "カテゴリを選択してください。";
         }
-        // 新規作成
+        else if (string.IsNullOrEmpty(_memo?.Title))
+        {
+            _message = "タイトルを入力してください。";
+        }
         else
         {
-            await SupabaseService.CreateMemoAsync(_memo!);
+            // 更新
+            if (MemoId.HasValue)
+            {
+                var result = await SupabaseService.UpdateMemoAsync(_memo!);
+                result.Match(
+                    memo => _message = "保存しました。",
+                    error => _message = error.Message
+                );
+            }
+            // 新規作成
+            else
+            {
+                var result = await SupabaseService.CreateMemoAsync(_memo!);
+                result.Match(
+                    memo =>
+                    {
+                        _memo = memo;
+                        _message = "保存しました。";
+                    },
+                    error => _message = error.Message
+                );
+            }
         }
+
+        await JS.InvokeVoidAsync("showToast");
     }
 
     /// <summary>
@@ -209,7 +318,7 @@ else
     /// </summary>
     private void Cancel()
     {
-        if (_memo is null || CategoryService.Categories?.Any(x => x.Id == _memo.CategoryId) == false)
+        if (_memo is null || CategoryService.Categories?.Any(x => x.CategoryId == _memo.CategoryId) == false)
         {
             Navigation.NavigateTo($"/top");
         }
@@ -220,25 +329,68 @@ else
     }
 
     /// <summary>
+    /// カテゴリ削除確認モーダル表示
+    /// </summary>
+    /// <param name="categoryId"></param>
+    /// <returns></returns>
+    private async Task ShowDeleteModal(Guid categoryId)
+    {
+        _deleteTargetCategoryId = categoryId;
+        await JS.InvokeVoidAsync("showDeleteModal");
+    }
+
+    /// <summary>
     /// カテゴリ追加
     /// </summary>
     private async Task AddCategory()
     {
-        await CategoryService.AddCategoryAsync(new Category
+        var getUserIdResult = SupabaseService.GetUserId();
+        if (getUserIdResult.IsSuccess)
         {
-            Name = _newCategoryName,
-            Description = _newCategoryDescription
-        });
-        _newCategoryName = string.Empty;
-        _newCategoryDescription = string.Empty;
+            var result = await CategoryService.AddCategoryAsync(new Category
+            {
+                UserId = getUserIdResult.GetSuccess(),
+                Name = _newCategoryName,
+                Description = _newCategoryDescription
+            });
+
+            result.Match(
+                _ => _message = "カテゴリを追加しました。",
+                error => _message = error.Message
+            );
+
+            _newCategoryName = string.Empty;
+            _newCategoryDescription = string.Empty;
+        }
+        else
+        {
+            _message = getUserIdResult.GetFailure().Message;
+        }
+
+        await JS.InvokeVoidAsync("showToast");
     }
 
     /// <summary>
     /// カテゴリ削除
     /// </summary>
-    /// <param name="categoryId"></param>
-    private async Task DeleteCategory(int categoryId)
+    private async Task DeleteCategory()
     {
-        await CategoryService.DeleteCategoryAsync(categoryId);
+        if (_deleteTargetCategoryId is null)
+        {
+            return;
+        }
+
+        var result = await CategoryService.DeleteCategoryAsync(_deleteTargetCategoryId.Value);
+
+        result.Match(
+            _ => _message = "カテゴリを削除しました。",
+            error => _message = error.Message
+        );
+
+        _deleteTargetCategoryId = null;
+        await JS.InvokeVoidAsync("hideDeleteModal");
+        StateHasChanged();
+
+        await JS.InvokeVoidAsync("showToast");
     }
 }

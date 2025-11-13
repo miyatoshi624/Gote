@@ -19,7 +19,7 @@ else
         @foreach (var memo in _memos)
         {
             <li class="list-group-item">
-                <span class="pointer" @onclick="() => Edit(memo.Id)"><strong>@memo.Title</strong></span>
+                <span class="pointer" @onclick="() => Edit(memo.MemoId)"><strong>@memo.Title</strong></span>
                 <div class="text-muted small">@memo.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</div>
             </li>
         }
@@ -38,7 +38,11 @@ else
     /// <returns></returns>
     protected override async Task OnInitializedAsync()
     {
-        _memos = await SupabaseService.GetLatestMemosAsync(10);
+        var result = await SupabaseService.GetLatestMemosAsync(10);
+        result.Match(
+            memos => _memos = memos,
+            error => _memos = new List<Memo>()
+        );
 
         await base.OnInitializedAsync();
     }
@@ -47,12 +51,12 @@ else
     /// メモ編集画面へ遷移
     /// </summary>
     /// <param name="memoId"></param>
-    private void Edit(int memoId)
+    private void Edit(Guid memoId)
     {
-        Memo? memo = _memos?.FirstOrDefault(x => x.Id == memoId);
+        Memo? memo = _memos?.FirstOrDefault(x => x.MemoId == memoId);
         if (memo is not null)
         {
-            Navigation.NavigateTo($"/edit/{memo.CategoryId}/{memo.Id}");
+            Navigation.NavigateTo($"/edit/{memo.CategoryId}/{memo.MemoId}");
         }
     }
 }

@@ -5,8 +5,10 @@ namespace Gote.Services
     /// <summary>
     /// カテゴリの状態を管理するサービス
     /// </summary>
-    /// <param name="_supabaseService">Supabaseサービス</param>
-    internal sealed class CategoryStateService(ISupabaseService _supabaseService)
+    /// <param name="supabaseService">
+    /// Supabaseサービス
+    /// </param>
+    internal sealed class CategoryStateService(ISupabaseService supabaseService)
     {
         /// <summary>
         /// カテゴリの状態が変更されたときに発火するイベント
@@ -21,32 +23,55 @@ namespace Gote.Services
         /// カテゴリ一覧を非同期で読み込む
         /// </summary>
         /// <returns></returns>
-        public async Task LoadCategoriesAsync()
+        public async Task<Result<bool, Error>> LoadCategoriesAsync()
         {
-            Categories = await _supabaseService.GetCategoriesAsync();
-            OnCategoryStateChanged?.Invoke();
+            var result = await supabaseService.GetCategoriesAsync();
+            if (result.IsSuccess)
+            {
+                Categories = result.GetSuccess();
+                OnCategoryStateChanged?.Invoke();
+                return true;
+            }
+            else
+            {
+                return result.GetFailure();
+            }  
         }
 
         /// <summary>
         /// カテゴリを非同期で追加する
         /// </summary>
-        /// <param name="category"></param>
+        /// <param name="category">カテゴリ</param>
         /// <returns></returns>
-        public async Task AddCategoryAsync(Category category)
+        public async Task<Result<bool, Error>> AddCategoryAsync(Category category)
         {
-            await _supabaseService.CreateCategoryAsync(category);
-            await LoadCategoriesAsync();
+            var result = await supabaseService.CreateCategoryAsync(category);
+            if (result.IsSuccess)
+            {
+                return await LoadCategoriesAsync();
+            }
+            else
+            {
+                return result.GetFailure();
+            }
         }
 
         /// <summary>
         /// カテゴリを非同期で削除する
         /// </summary>
-        /// <param name="categoryId"></param>
+        /// <param name="categoryId">カテゴリID</param>
         /// <returns></returns>
-        public async Task DeleteCategoryAsync(int categoryId)
+        public async Task<Result<bool, Error>> DeleteCategoryAsync(Guid categoryId)
         {
-            await _supabaseService.DeleteCategoryAsync(categoryId);
-            await LoadCategoriesAsync();
+            var result = await supabaseService.DeleteCategoryAsync(categoryId);
+            if (result.IsSuccess)
+            {
+                return await LoadCategoriesAsync();
+            }
+            else
+            {
+                return result.GetFailure();
+            }
         }
     }
 }

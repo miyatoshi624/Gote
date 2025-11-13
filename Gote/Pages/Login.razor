@@ -123,24 +123,28 @@
     /// <returns></returns>
     private async Task SignIn()
     {
+        _message = string.Empty;
+
         // SupabaseServiceでサインイン処理を実装
         // OKなら認証情報を作成し、/topへリダイレクト
-        string? userName = await SupabaseService.SignInAsync(_password);
-        if (string.IsNullOrEmpty(userName) == false)
-        {
-            if (AuthStateProvider is CustomAuthenticationStateProvider customAuthentication)
+        var result = await SupabaseService.SignInAsync(_password);
+        result.Match(
+            userId =>
             {
-                customAuthentication.MarkUserAsAuthenticated(userName);
-                Navigation.NavigateTo("/top");
-            }
-            else
+                if (AuthStateProvider is CustomAuthenticationStateProvider customAuthentication)
+                {
+                    customAuthentication.MarkUserAsAuthenticated(userId);
+                    Navigation.NavigateTo("/top");
+                }
+                else
+                {
+                    _message = "認証状態の作成に失敗しました。再度サインインしてください。";
+                }
+            },
+            error =>
             {
-                _message = "認証状態の作成に失敗しました。再度サインインしてください。";
+                _message = error.Message;
             }
-        }
-        else
-        {
-            _message = "サインインに失敗しました。パスワードを確認してください。";
-        }
+        );
     }
 }

@@ -1,4 +1,6 @@
-﻿@inject CategoryStateService CategoryService
+﻿@inject ISupabaseService SupabaseService
+@inject CategoryStateService CategoryService
+@inject NavigationManager Navigation
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -11,29 +13,47 @@
 
 <div class="@_navMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
-        @if (CategoryService.Categories is null)
+        @if (SupabaseService.IsSessionValid())
         {
-            <div>カテゴリを読み込み中...</div>
-        }
-        else if (!CategoryService.Categories.Any())
-        {
-            <div>カテゴリがありません</div>
+            @if (CategoryService.Categories is null)
+            {
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="" @onclick:preventDefault="true">カテゴリを読み込み中...</a>
+                </div>
+                <div>カテゴリを読み込み中...</div>
+            }
+            else if (!CategoryService.Categories.Any())
+            {
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="" @onclick:preventDefault="true">カテゴリがありません</a>
+                </div>
+            }
+            else
+            {
+                @foreach (Category category in CategoryService.Categories)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href=@($"list/{category.CategoryId}")>
+                            @category.Name
+                        </NavLink>
+                    </div>
+                }
+            }
+            <hr class="nav-hr mb-2" />
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@($"edit")">新規作成</NavLink>
+            </div>
+            <hr class="nav-hr mb-2" />
+            <div class="nav-item px-3">
+                <a class="nav-link" href="" @onclick="SignOut" @onclick:preventDefault="true">ログアウト</a>
+            </div>
         }
         else
         {
-            @foreach (Category category in CategoryService.Categories)
-            {
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href=@($"list/{category.Id}")>
-                        @category.Name
-                    </NavLink>
-                </div>
-            }
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@($"signup")">サインアップ</NavLink>
+            </div>
         }
-        <hr class="nav-hr mb-2" />
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="@($"edit/0")">新規作成</NavLink>
-        </div>
     </nav>
 </div>
 
@@ -53,8 +73,27 @@
     /// <returns></returns>
     protected override async Task OnInitializedAsync()
     {
+        SupabaseService.OnAuthStateChanged += OnAuthStateChanged;
         CategoryService.OnCategoryStateChanged += OnCategoryStateChanged;
-        await CategoryService.LoadCategoriesAsync();
+        if (SupabaseService.IsSessionValid())
+        {
+            await CategoryService.LoadCategoriesAsync();
+        }
+    }
+
+    /// <summary>
+    /// 認証状態変更イベントハンドラ
+    /// </summary>
+    private void OnAuthStateChanged()
+    {
+        if (SupabaseService.IsSessionValid())
+        {
+            _ = CategoryService.LoadCategoriesAsync();
+        }
+        else
+        {
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     /// <summary>
@@ -70,6 +109,7 @@
     /// </summary>
     public void Dispose()
     {
+        SupabaseService.OnAuthStateChanged -= OnAuthStateChanged;
         CategoryService.OnCategoryStateChanged -= OnCategoryStateChanged;
     }
 
@@ -79,5 +119,18 @@
     private void ToggleNavMenu()
     {
         _collapseNavMenu = !_collapseNavMenu;
+    }
+
+    /// <summary>
+    /// サインアウト処理
+    /// </summary>
+    private async void SignOut()
+    {
+        var result = await SupabaseService.SignOutAsync();
+        result.Match(
+            _ => Console.WriteLine("サインアウトに成功しました"),
+            error => Console.Error.WriteLine($"サインアウトに失敗しました: {error.Message}")
+        );
+        Navigation.NavigateTo($"/");
     }
 }

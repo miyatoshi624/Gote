@@ -1,0 +1,48 @@
+name: Deploy Blazor WASM to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Setup .NET SDK
+          uses: actions/setup-dotnet@v4
+          with:
+            dotnet-version: '8.0.x'
+
+        - name: Restore dependencies
+          run: dotnet restore
+
+        - name: Build Blazor WASM project
+          run: dotnet publish -c Release -o release
+
+        - name: Create appsettings.json
+          run: |
+            mkdir -p release/wwwroot
+            echo '{
+              "Supabase": {
+                "Email": "${{ secrets.SUPABASE_EMAIL }}",
+                "Url": "${{ secrets.SUPABASE_URL }}",
+                "Key": "${{ secrets.SUPABASE_KEY }}"
+             }
+            }' > release/wwwroot/appsettings.json
+
+        - name: Add .nojekyll
+          run: touch release/wwwroot/.nojekyll
+
+        - name: Deploy to GitHub Pages
+          uses: peaceiris/actions-gh-pages@v4
+          with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./release/wwwroot

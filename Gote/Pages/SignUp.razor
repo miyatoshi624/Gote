@@ -1,0 +1,59 @@
+﻿@attribute [AllowAnonymous]
+@page "/signup"
+
+@inject NavigationManager Navigation
+@inject ISupabaseService SupabaseService
+
+<PageTitle>Sign Up</PageTitle>
+
+<div class="mb-3">
+    <input class="form-control" @bind="_password" type="password" placeholder="パスワードを入力してください" />
+</div>
+<div class="btn-toolbar">
+    <div class="btn-group">
+        <button class="btn btn-secondary" @onclick="Cancel">戻る</button>
+        <button class="btn btn-primary" @onclick="SignUpAsync">サインアップ</button>
+    </div>
+</div>
+
+
+@if (!string.IsNullOrEmpty(_message))
+{
+    <div class="alert alert-danger mt-3" role="alert">
+        @_message
+    </div>
+}
+
+@code {
+    private string _password = string.Empty;
+    private string _message = string.Empty;
+
+    private async Task SignUpAsync()
+    {
+        _message = string.Empty;
+
+        var result = await SupabaseService.SignUpAsync(_password);
+        result.Match(
+            _ =>
+            {
+                _message = "サインアップが完了しました。サインインしてください。";
+            },
+            error =>
+            {
+                _message = error.Message;
+            }
+        );
+    }
+
+    private void Cancel()
+    {
+        if (SupabaseService.IsSessionValid())
+        {
+            Navigation.NavigateTo("/top");
+        }
+        else
+        {
+            Navigation.NavigateTo("/");
+        }   
+    }
+}

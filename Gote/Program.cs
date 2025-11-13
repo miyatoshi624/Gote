@@ -15,8 +15,8 @@ builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStat
 builder.Services.AddAuthorizationCore();
 
 // Supabaseサービスを登録
-builder.Services.AddScoped<ISupabaseService, MockSupabaseService>();
-//builder.Services.AddScoped<ISupabaseService, SupabaseService>();
+//builder.Services.AddScoped<ISupabaseService, MockSupabaseService>();
+builder.Services.AddScoped<ISupabaseService, SupabaseService>();
 
 // カテゴリ状態管理サービスを登録
 builder.Services.AddScoped<CategoryStateService>();

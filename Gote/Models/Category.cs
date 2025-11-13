@@ -1,4 +1,6 @@
-﻿using Supabase.Postgrest.Attributes;
+﻿using Newtonsoft.Json;
+using Supabase.Postgrest.Attributes;
+using Supabase.Postgrest.Models;
 
 namespace Gote.Models
 {
@@ -6,13 +8,18 @@ namespace Gote.Models
     /// カテゴリモデル
     /// </summary>
     [Table("categories")]
-    internal sealed class Category
+    internal sealed class Category : BaseModel
     {
         /// <summary>
         /// カテゴリID
         /// </summary>
-        [PrimaryKey("id")]
-        public int Id { get; set; }
+        [PrimaryKey("category_id")]
+        public Guid CategoryId { get; set; }
+        /// <summary>
+        /// ユーザID
+        /// </summary>
+        [Column("user_id")]
+        public Guid UserId { get; set; }
         /// <summary>
         /// カテゴリ名
         /// </summary>
@@ -26,6 +33,7 @@ namespace Gote.Models
         /// <summary>
         /// 外部参照されているかどうか
         /// </summary>
+        [JsonIgnore]
         public bool IsReferenced { get; set; } = false;
     }
 }

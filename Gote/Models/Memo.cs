@@ -1,4 +1,5 @@
 ﻿using Supabase.Postgrest.Attributes;
+using Supabase.Postgrest.Models;
 
 namespace Gote.Models
 {
@@ -6,18 +7,23 @@ namespace Gote.Models
     /// メモモデル
     /// </summary>
     [Table("memos")]
-    internal sealed class Memo
+    internal sealed class Memo : BaseModel
     {
         /// <summary>
         /// メモID
         /// </summary>
-        [PrimaryKey("id")]
-        public int Id { get; set; }
+        [PrimaryKey("memo_id")]
+        public Guid MemoId { get; set; }
+        /// <summary>
+        /// ユーザID
+        /// </summary>
+        [Column("user_id")]
+        public Guid UserId { get; set; }
         /// <summary>
         /// カテゴリID
         /// </summary>
-        [Reference(typeof(Category), ReferenceAttribute.JoinType.Inner, columnName: "category_id")]
-        public int CategoryId { get; set; }
+        [Column("category_id")]
+        public Guid CategoryId { get; set; }
         /// <summary>
         /// タイトル
         /// </summary>

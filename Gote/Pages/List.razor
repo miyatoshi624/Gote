@@ -1,30 +1,76 @@
-﻿@page "/list/{CategoryId:int}"
+﻿@page "/list/{CategoryId:guid}"
 
+@inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject ISupabaseService SupabaseService
 
-@if (_memos is null)
+@if (string.IsNullOrEmpty(_errorMessage))
 {
-    <div>読み込み中...</div>
-}
-else if (!_memos.Any())
-{
-    <div>メモがありません</div>
+    @if (_memos is null)
+    {
+        <div>読み込み中...</div>
+    }
+    else if (!_memos.Any())
+    {
+        <div>メモがありません</div>
+    }
+    else
+    {
+        <ul class="list-group">
+            @foreach (var memo in _memos)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="pointer" @onclick="() => Edit(memo.MemoId)"><strong>@memo.Title</strong></span>
+                        <div class="text-muted small">@memo.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" @onclick="() => ShowDeleteModal(memo.MemoId)">削除</button>
+                </li>
+            }
+        </ul>
+
+        <!-- 確認 -->
+        <div class="modal" id="delete-modal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">確認</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>メモを削除します。</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">いいえ</button>
+                        <button type="button" class="btn btn-primary" @onclick="Delete">はい</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.showDeleteModal = function () {
+                const modalEl = document.getElementById('delete-modal');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.show();
+                }
+            }
+            window.hideDeleteModal = function () {
+                const modalEl = document.getElementById('delete-modal');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                    modal.hide();
+                }
+            }
+        </script>
+    }
 }
 else
 {
-    <ul class="list-group">
-        @foreach (var memo in _memos)
-        {
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="pointer" @onclick="() => Edit(memo.Id)"><strong>@memo.Title</strong></span>
-                    <div class="text-muted small">@memo.UpdatedAt.ToString("yyyy/MM/dd HH:mm")</div>
-                </div>
-                <button class="btn btn-danger btn-sm" @onclick="() => Delete(memo.Id)">削除</button>
-            </li>
-        }
-    </ul>
+    <div class="alert alert-danger" role="alert">
+        @_errorMessage
+    </div>
 }
 
 @code {
@@ -32,11 +78,19 @@ else
     /// カテゴリID
     /// </summary>
     [Parameter]
-    public int CategoryId { get; set; }
+    public Guid CategoryId { get; set; }
     /// <summary>
     /// メモ一覧
     /// </summary>
     private List<Memo>? _memos;
+    /// <summary>
+    /// 削除対象メモID
+    /// </summary>
+    private Guid? _deleteTargetMemoId;
+    /// <summary>
+    /// エラーメッセージ
+    /// </summary>
+    private string _errorMessage = string.Empty;
 
     /// <summary>
     /// パラメータ設定時処理
@@ -44,7 +98,12 @@ else
     /// <returns></returns>
     protected override async Task OnParametersSetAsync()
     {
-        _memos = await SupabaseService.GetMemosAsync(CategoryId);
+        var result = await SupabaseService.GetMemosAsync(CategoryId);
+
+        result.Match(
+            memos => _memos = memos,
+            error => _errorMessage = error.Message
+    );
     }
 
     /// <summary>
@@ -59,18 +118,42 @@ else
     /// メモ編集画面へ遷移
     /// </summary>
     /// <param name="memoId"></param>
-    private void Edit(int memoId)
+    private void Edit(Guid memoId)
     {
         Navigation.NavigateTo($"/edit/{CategoryId}/{memoId}");
     }
 
     /// <summary>
+    /// 削除確認モーダル表示
+    /// </summary>
+    /// <param name="memoId">メモID</param>
+    /// <returns></returns>
+    private async Task ShowDeleteModal(Guid memoId)
+    {
+        _deleteTargetMemoId = memoId;
+        await JS.InvokeVoidAsync("showDeleteModal");
+    }
+
+    /// <summary>
     /// メモ削除
     /// </summary>
-    /// <param name="memoId"></param>
     /// <returns></returns>
-    private async Task Delete(int memoId)
+    private async Task Delete()
     {
-        await SupabaseService.DeleteMemoAsync(memoId);
+        if (_deleteTargetMemoId is null)
+        {
+            return;
+        }
+
+        await SupabaseService.DeleteMemoAsync(_deleteTargetMemoId.Value);
+        var result = await SupabaseService.GetMemosAsync(CategoryId);
+        result.Match(
+            memos => _memos = memos,
+            error => Console.Error.WriteLine($"メモの取得に失敗しました: {error.Message}")
+        );
+
+        _deleteTargetMemoId = null;
+        await JS.InvokeVoidAsync("hideDeleteModal");
+        StateHasChanged();
     }
 }

@@ -24,11 +24,11 @@ namespace Gote.Services
         /// <summary>
         /// 指定されたユーザーを認証済みとしてマークします。
         /// </summary>
-        public void MarkUserAsAuthenticated(string userName)
+        public void MarkUserAsAuthenticated(Guid userId)
         {
             _currentUser = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
             [
-                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userName)
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, userId.ToString())
             ], "CustomAuth"));
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }

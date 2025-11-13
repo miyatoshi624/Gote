@@ -26,7 +26,7 @@ jobs:
           run: dotnet restore
 
         - name: Build Blazor WASM project
-          run: dotnet publish -c Release -o release
+          run: dotnet publish Gote/Gote.csproj -c Release -o release
 
         - name: Create appsettings.json
           run: |

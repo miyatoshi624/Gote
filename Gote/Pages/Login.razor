@@ -1,5 +1,6 @@
 ﻿@attribute [AllowAnonymous]
 @page "/"
+@page "/login"
 
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
@@ -50,7 +51,7 @@
         // 認証状態を確認し、認証されていればリダイレクト
         if (SupabaseService.IsSessionValid())
         {
-            Navigation.NavigateTo("/top");
+            Navigation.NavigateTo("top");
         }
         else
         {
@@ -134,7 +135,7 @@
                 if (AuthStateProvider is CustomAuthenticationStateProvider customAuthentication)
                 {
                     customAuthentication.MarkUserAsAuthenticated(userId);
-                    Navigation.NavigateTo("/top");
+                    Navigation.NavigateTo("top");
                 }
                 else
                 {

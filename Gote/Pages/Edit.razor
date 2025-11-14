@@ -320,11 +320,11 @@ else
     {
         if (_memo is null || CategoryService.Categories?.Any(x => x.CategoryId == _memo.CategoryId) == false)
         {
-            Navigation.NavigateTo($"/top");
+            Navigation.NavigateTo($"top");
         }
         else
         {
-            Navigation.NavigateTo($"/list/{_memo.CategoryId}");
+            Navigation.NavigateTo($"list/{_memo.CategoryId}");
         }
     }
 

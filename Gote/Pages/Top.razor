@@ -56,7 +56,7 @@ else
         Memo? memo = _memos?.FirstOrDefault(x => x.MemoId == memoId);
         if (memo is not null)
         {
-            Navigation.NavigateTo($"/edit/{memo.CategoryId}/{memo.MemoId}");
+            Navigation.NavigateTo($"edit/{memo.CategoryId}/{memo.MemoId}");
         }
     }
 }

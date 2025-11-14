@@ -49,11 +49,11 @@
     {
         if (SupabaseService.IsSessionValid())
         {
-            Navigation.NavigateTo("/top");
+            Navigation.NavigateTo("top");
         }
         else
         {
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo("login");
         }   
     }
 }

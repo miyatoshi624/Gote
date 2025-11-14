@@ -3,7 +3,7 @@ name: Deploy Blazor WASM to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,12 @@ jobs:
 
         - name: Build Blazor WASM project
           run: dotnet publish Gote/Gote.csproj -c Release -o release
+
+        - name: Update base href for GitHub Pages
+          run: sed -i 's|<base href="/" />|<base href="/Gote/" />|' release/wwwroot/index.html
+
+        - name: Copy index.html to 404.html
+          run: cp release/wwwroot/index.html release/wwwroot/404.html
 
         - name: Create appsettings.json
           run: |

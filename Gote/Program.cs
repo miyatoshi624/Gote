@@ -22,3 +22,4 @@ builder.Services.AddScoped<ISupabaseService, SupabaseService>();
 builder.Services.AddScoped<CategoryStateService>();
 
 await builder.Build().RunAsync();
+

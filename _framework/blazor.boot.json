@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "Gote",
   "resources": {
-    "hash": "sha256-FqRc2jDZZ41xPQRAL/gKwamlMZLjF2Ykx7EQoVUryCc=",
+    "hash": "sha256-HXkJFGeeqsSxd78wjlp1GfqZx5rE7u2hbujMWhcLEQI=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-9Fzd5We95Rp03dEKIAbYjPDR3eWyLbmjMlYStvxyiok="
     },
@@ -110,7 +110,7 @@
       "System.wasm": "sha256-PUc71Jd5nvz5F65sAd0C3ZORcUzYK2JSfSDmE+Drn0Q=",
       "netstandard.wasm": "sha256-XUi24CURva9yBFytY+D1dz5//UvgwKrqCPFMwsD18Y8=",
       "System.Private.CoreLib.wasm": "sha256-0cnzBNeGzLhQUcCa0pimYmrQc9CKnXe6QGuIumUYGwo=",
-      "Gote.wasm": "sha256-XBPfmqB0hu+h899NXeWP9HXb++vzsKD+y99TDv72Kfw="
+      "Gote.wasm": "sha256-nVLo0lyNyxrUiToksl7EzIzlazCX3Q5vU2IbwgtoX94="
     }
   },
   "cacheBootResources": true,
